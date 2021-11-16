@@ -14,7 +14,8 @@
 static inline void GenerateAudio(struct SoundMixerState *mixer, struct MixerSource *chan, struct WaveData2 *wav, float *outBuffer, u16 samplesPerFrame, float sampleRateReciprocal);
 void SampleMixer(struct SoundMixerState *mixer, u32 scanlineLimit, u16 samplesPerFrame, float *outBuffer, u8 dmaCounter, u16 maxBufSize);
 static inline bool32 TickEnvelope(struct MixerSource *chan, struct WaveData2 *wav);
-void GeneratePokemonSampleAudio(struct SoundMixerState *mixer, struct MixerSource *chan, s8 *current, float *outBuffer, u16 samplesPerFrame, float sampleRateReciprocal, s32 samplesLeftInWav, signed envR, signed envL);
+void GeneratePokemonSampleAudio(struct SoundMixerState *mixer, struct MixerSource *chan, s8 *current, float *outBuffer, u16 samplesPerFrame, float sampleRateReciprocal, s32 samplesLeftInWav, signed envR, signed envL, s32 loopLen);
+static s8 sub_82DF758(struct MixerSource *chan, u32 current);
 
 void RunMixerFrame(void) {
     struct SoundMixerState *mixer = SOUND_INFO_PTR;
@@ -240,7 +241,7 @@ static inline void GenerateAudio(struct SoundMixerState *mixer, struct MixerSour
     signed envL = chan->envelopeVolL;
 #ifdef POKEMON_EXTENSIONS
     if (chan->type & 0x30) {
-        GeneratePokemonSampleAudio(mixer, chan, current, outBuffer, samplesPerFrame, sampleRateReciprocal, samplesLeftInWav, envR, envL);
+        GeneratePokemonSampleAudio(mixer, chan, current, outBuffer, samplesPerFrame, sampleRateReciprocal, samplesLeftInWav, envR, envL, loopLen);
     }
     else
 #endif
@@ -324,7 +325,7 @@ struct WaveData
     s8 data[1]; // samples
 };
 
-void GeneratePokemonSampleAudio(struct SoundMixerState *mixer, struct MixerSource *chan, s8 *current, float *outBuffer, u16 samplesPerFrame, float sampleRateReciprocal, s32 samplesLeftInWav, signed envR, signed envL) {
+void GeneratePokemonSampleAudio(struct SoundMixerState *mixer, struct MixerSource *chan, s8 *current, float *outBuffer, u16 samplesPerFrame, float sampleRateReciprocal, s32 samplesLeftInWav, signed envR, signed envL, s32 loopLen) {
     struct WaveData *wav = chan->wav; // r6
     float finePos = chan->fw;
     if((chan->status & 0x20) == 0) {
@@ -341,18 +342,88 @@ void GeneratePokemonSampleAudio(struct SoundMixerState *mixer, struct MixerSourc
     }
     float romSamplesPerOutputSample = chan->type & 8 ? 1.0f : chan->freq * sampleRateReciprocal;
     if(wav->type != 0) { // is compressed
-        chan->extra1 = 0;
-        chan->extra2 = 0xFF00;
-        if(chan->type & 0x20) {
+        chan->blockCount = 0xFF000000;
+        if(chan->type & 0x10) { // is reverse
+            current -= 1;
+            sf16 b = sub_82DF758(chan, (uintptr_t)current);
+            sf16 m = sub_82DF758(chan, (uintptr_t)current - 1) - b;
 
+            for (u16 i = 0; i < samplesPerFrame; i++, outBuffer+=2) {
+                float sample = (finePos * m) + b;
+                
+                outBuffer[1] += (sample * envR) / 32768.0f;
+                outBuffer[0] += (sample * envL) / 32768.0f;
+                
+                finePos += romSamplesPerOutputSample;
+                int newCoarsePos = finePos;
+                if (newCoarsePos != 0) {
+                    finePos -= (int)finePos;
+                    samplesLeftInWav -= newCoarsePos;
+                    if (samplesLeftInWav <= 0) {
+                        chan->status = 0;
+                        break;
+                    }
+                    else {
+                        current -= newCoarsePos;
+                        b = sub_82DF758(chan, (uintptr_t)current);
+                        m = sub_82DF758(chan, (uintptr_t)current - 1) - b;
+                    }
+                }
+            }
+            
+            chan->fw = finePos;
+            chan->ct = samplesLeftInWav;
+            chan->current = current + 1;
         }
         else {
-
-        } 
-        //TODO: implement compression
+            sf16 b = sub_82DF758(chan, (uintptr_t)current);
+            sf16 m = sub_82DF758(chan, (uintptr_t)current + 1) - b;
+            current += 1;
+        
+            for (u16 i = 0; i < samplesPerFrame; i++, outBuffer+=2) {
+                float sample = (finePos * m) + b;
+                
+                outBuffer[1] += (sample * envR) / 32768.0f;
+                outBuffer[0] += (sample * envL) / 32768.0f;
+                
+                finePos += romSamplesPerOutputSample;
+                u32 newCoarsePos = finePos; // lr
+                if (newCoarsePos != 0) {
+                    finePos -= (int)finePos;
+                    samplesLeftInWav -= newCoarsePos;
+                    if (samplesLeftInWav <= 0) {
+                        if (loopLen != 0) {
+                            current = chan->wav->loopStart;
+                            newCoarsePos = -samplesLeftInWav;
+                            samplesLeftInWav += loopLen;
+                            while (samplesLeftInWav <= 0) {
+                                newCoarsePos -= loopLen;
+                                samplesLeftInWav += loopLen;
+                            }
+                            current += newCoarsePos;
+                            b = sub_82DF758(chan, (uintptr_t)current);
+                            m = sub_82DF758(chan, (uintptr_t)current + 1) - b;
+                            current += 1;
+                        } else {
+                            chan->status = 0;
+                            return;
+                        }
+                    } else {
+                        current += newCoarsePos - 1;
+                        b = sub_82DF758(chan, (uintptr_t)current);
+                        m = sub_82DF758(chan, (uintptr_t)current + 1) - b;    
+                        current += 1;
+                    }
+                }
+            }
+            
+            chan->fw = finePos;
+            chan->ct = samplesLeftInWav;
+            chan->current = current - 1;
+        }
     }
     else {
-        if(chan->type & 0x10) {
+        if(chan->type & 0x10) { // is reverse
             current -= 1;
             sf16 b = current[0];
             sf16 m = current[-1] - b;
@@ -385,4 +456,26 @@ void GeneratePokemonSampleAudio(struct SoundMixerState *mixer, struct MixerSourc
             chan->current = current + 1;
         }
     }
+}
+
+s8 gBDPCMBlockBuffer[64];
+extern const s8 gDeltaEncodingTable[];
+
+static s8 sub_82DF758(struct MixerSource *chan, u32 current) {
+    u32 blockOffset = current >> 6; // current / 64
+    u8 * blockPtr;
+    int i;
+    if(chan->blockCount != blockOffset) { // decode block if not decoded
+        s32 s;
+        chan->blockCount = blockOffset;
+        blockPtr = chan->wav->data + chan->blockCount * 0x21;
+        gBDPCMBlockBuffer[0] = s = (s8)*blockPtr++;
+        gBDPCMBlockBuffer[1] = s += gDeltaEncodingTable[*blockPtr++ & 0xF];
+        for(i = 2; i < 64; i+=2) {
+            u32 temp = *blockPtr++;
+            gBDPCMBlockBuffer[i] = s += gDeltaEncodingTable[temp >> 4];
+            gBDPCMBlockBuffer[i+1] = s += gDeltaEncodingTable[temp & 0xF];
+        }
+    }
+    return gBDPCMBlockBuffer[current & 63]; // index same as current % 64
 }

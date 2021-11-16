@@ -71,8 +71,7 @@ struct MixerSource {
     struct MixerSource *prev;
     struct MixerSource *next;
     u32 padding7; //d4
-    u16 extra1;
-    u16 extra2;
+    u32 blockCount; // bdpcm block count
 };
 
 enum { MAX_SAMPLE_CHANNELS = 12 };

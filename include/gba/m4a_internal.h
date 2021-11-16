@@ -161,8 +161,7 @@ struct SoundChannel
     void *prevChannelPointer;
     void *nextChannelPointer;
     u32 dummy4;
-    u16 xpi;
-    u16 xpc;
+    u32 blockCount;
 };
 
 #define MAX_DIRECTSOUND_CHANNELS 12
@@ -392,6 +391,8 @@ extern const u16 gPcmSamplesPerVBlankTable[];
 extern const u8 gCgbScaleTable[];
 extern const s16 gCgbFreqTable[];
 extern const u8 gNoiseTable[];
+
+extern const s8 gDeltaEncodingTable[];
 
 extern const struct PokemonCrySong gPokemonCrySongTemplate;
 
