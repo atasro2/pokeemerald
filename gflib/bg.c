@@ -776,17 +776,6 @@ void SetBgAffine(u8 bg, s32 srcCenterX, s32 srcCenterY, s16 dispCenterX, s16 dis
     SetBgAffineInternal(bg, srcCenterX, srcCenterY, dispCenterX, dispCenterY, scaleX, scaleY, rotationAngle);
 }
 
-enum
-{
-    BG_MOSAIC_SET_HV,
-    BG_MOSAIC_SET_H,
-    BG_MOSAIC_ADD_H,
-    BG_MOSAIC_SUB_H,
-    BG_MOSAIC_SET_V,
-    BG_MOSAIC_ADD_V,
-    BG_MOSAIC_SUB_V,
-};
-
 u8 Unused_AdjustBgMosaic(u8 val, u8 mode)
 {
     u16 mosaic = GetGpuReg(REG_OFFSET_MOSAIC);
