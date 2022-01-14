@@ -778,13 +778,13 @@ void SetBgAffine(u8 bg, s32 srcCenterX, s32 srcCenterY, s16 dispCenterX, s16 dis
 
 enum
 {
-    MOSAIC_SET_HV,
-    MOSAIC_SET_H,
-    MOSAIC_ADD_H,
-    MOSAIC_SUB_H,
-    MOSAIC_SET_V,
-    MOSAIC_ADD_V,
-    MOSAIC_SUB_V,
+    BG_MOSAIC_SET_HV,
+    BG_MOSAIC_SET_H,
+    BG_MOSAIC_ADD_H,
+    BG_MOSAIC_SUB_H,
+    BG_MOSAIC_SET_V,
+    BG_MOSAIC_ADD_V,
+    BG_MOSAIC_SUB_V,
 };
 
 u8 Unused_AdjustBgMosaic(u8 val, u8 mode)
@@ -797,15 +797,15 @@ u8 Unused_AdjustBgMosaic(u8 val, u8 mode)
 
     switch (mode)
     {
-    case MOSAIC_SET_HV:
+    case BG_MOSAIC_SET_HV:
     default:
         bgH = val & 0xF;
         bgV = val >> 0x4;
         break;
-    case MOSAIC_SET_H:
+    case BG_MOSAIC_SET_H:
         bgH = val & 0xF;
         break;
-    case MOSAIC_ADD_H:
+    case BG_MOSAIC_ADD_H:
         if ((bgH + val) > 0xF)
         {
             bgH = 0xF;
@@ -815,7 +815,7 @@ u8 Unused_AdjustBgMosaic(u8 val, u8 mode)
             bgH += val;
         }
         break;
-    case MOSAIC_SUB_H:
+    case BG_MOSAIC_SUB_H:
         if ((bgH - val) < 0)
         {
             bgH = 0x0;
@@ -825,10 +825,10 @@ u8 Unused_AdjustBgMosaic(u8 val, u8 mode)
             bgH -= val;
         }
         break;
-    case MOSAIC_SET_V:
+    case BG_MOSAIC_SET_V:
         bgV = val & 0xF;
         break;
-    case MOSAIC_ADD_V:
+    case BG_MOSAIC_ADD_V:
         if ((bgV + val) > 0xF)
         {
             bgV = 0xF;
@@ -838,7 +838,7 @@ u8 Unused_AdjustBgMosaic(u8 val, u8 mode)
             bgV += val;
         }
         break;
-    case MOSAIC_SUB_V:
+    case BG_MOSAIC_SUB_V:
         if ((bgV - val) < 0)
         {
             bgV = 0x0;
