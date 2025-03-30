@@ -357,6 +357,7 @@ static void CB2_TrainerCard(void)
     UpdatePaletteFade();
 }
 
+extern void SetVBlankHBlankCallbacksToNull(void);
 static void CloseTrainerCard(u8 taskId)
 {
     SetMainCallback2(sData->callback2);

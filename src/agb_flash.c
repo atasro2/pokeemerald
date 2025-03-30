@@ -289,9 +289,9 @@ u32 ProgramFlashSectorAndVerify(u16 sectorNum, u8 *src)
         if (result != 0)
             continue;
 
-        result = VerifyFlashSector(sectorNum, src);
-        if (result == 0)
-            break;
+        //result = VerifyFlashSector(sectorNum, src);
+        //if (result == 0)
+        //    break;
     }
 
     return result;
@@ -308,9 +308,9 @@ u32 ProgramFlashSectorAndVerifyNBytes(u16 sectorNum, u8 *src, u32 n)
         if (result != 0)
             continue;
 
-        result = VerifyFlashSectorNBytes(sectorNum, src, n);
-        if (result == 0)
-            break;
+        //result = VerifyFlashSectorNBytes(sectorNum, src, n);
+        //if (result == 0)
+        //    break;
     }
 
     return result;

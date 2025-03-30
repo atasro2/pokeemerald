@@ -105,9 +105,9 @@ void DmaSet(int dmaNum, const void *src, void *dest, u32 control)
     dma->control = control >> 16;
     
     //todo: get rid of these
-    (&REG_DMA0SAD)[dmaNum * 3] = src;
-    (&REG_DMA0DAD)[dmaNum * 3] = dest;
-    (&REG_DMA0CNT)[dmaNum * 3] = control;
+    (&REG_DMA0SAD)[dmaNum * 3] = (u32)src;
+    (&REG_DMA0DAD)[dmaNum * 3] = (u32)dest;
+    (&REG_DMA0CNT)[dmaNum * 3] = (u32)control;
 
     dma = &DMAList[dmaNum];
     dma->src = src;

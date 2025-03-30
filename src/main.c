@@ -102,7 +102,7 @@ void AgbMain()
     REG_WAITCNT = WAITCNT_PREFETCH_ENABLE | WAITCNT_WS0_S_1 | WAITCNT_WS0_N_3;
     InitKeys();
     InitIntrHandlers();
-    m4aSoundInit();
+    //m4aSoundInit();
     EnableVCountIntrAtLine150();
 #ifndef PORTABLE
     InitRFU();
@@ -371,7 +371,7 @@ static void VBlankIntr(void)
 
     gPcmDmaCounter = gSoundInfo.pcmDmaCounter;
 
-    m4aSoundMain();
+    //m4aSoundMain();
     TryReceiveLinkBattleData();
 
     if (!gMain.inBattle || !(gBattleTypeFlags & (BATTLE_TYPE_LINK | BATTLE_TYPE_FRONTIER | BATTLE_TYPE_RECORDED)))
@@ -402,7 +402,7 @@ static void VCountIntr(void)
     if (gMain.vcountCallback)
         gMain.vcountCallback();
 
-    m4aSoundVSync();
+    //m4aSoundVSync();
     INTR_CHECK |= INTR_FLAG_VCOUNT;
     gMain.intrCheck |= INTR_FLAG_VCOUNT;
 }

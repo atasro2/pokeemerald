@@ -349,7 +349,7 @@ void win32CreateBitmap()
     bmi.bmiHeader.biBitCount = 16;
     bmi.bmiHeader.biCompression = BI_RGB;
 
-    HBITMAP hbm = CreateDIBSection(hdc_bmp, &bmi, DIB_RGB_COLORS, (void**)&lpBitmapBits, NULL, NULL);
+    HBITMAP hbm = CreateDIBSection(hdc_bmp, &bmi, DIB_RGB_COLORS, (void**)&lpBitmapBits, NULL, (DWORD)NULL);
     HGDIOBJ oldbmp = SelectObject(hdc_bmp, hbm); 
 }
 
@@ -423,7 +423,7 @@ int main(int argc, char **argv)
     DBGPRINTF("cgb_audio_init Init done!\n");
     
     VDraw();
-    int ThreadID;
+    DWORD ThreadID;
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)DoMain, (LPVOID)&nCmdShow, 0, &ThreadID);
     DBGPRINTF("Thread Init done!\n");
 
@@ -508,7 +508,7 @@ int main(int argc, char **argv)
 
 static void ReadSaveFile(char *path)
 {
-    int bytesRead;
+    DWORD bytesRead;
     // Check whether the saveFile exists, and create it if not
     sSaveFile = CreateFileA(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (sSaveFile == INVALID_HANDLE_VALUE)
@@ -554,7 +554,7 @@ void Platform_StoreSaveFile(void)
 
 void Platform_ReadFlash(u16 sectorNum, u32 offset, u8 *dest, u32 size)
 {
-    int bytesRead;
+    DWORD bytesRead;
     DBGPRINTF("ReadFlash(sectorNum=0x%04X,offset=0x%08X,size=0x%02X)\n",sectorNum,offset,size);
     HANDLE savefile = CreateFileA(savePath, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL); 
     if (savefile == INVALID_HANDLE_VALUE)

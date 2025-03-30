@@ -1,15 +1,16 @@
 PREFIX := x86_64-w64-mingw32-
-OBJCOPY := $(PREFIX)objcopy
-CC := $(PREFIX)gcc
-AS := $(PREFIX)as
+OBJCOPY := objcopy
+CC := gcc
+AS := as
 
-SDL_DIR := /home/pokeemerald/SDL2-2.0.14/x86_64-w64-mingw32
+SDL_DIR := /home/MCboy/pokeemerald-sdl2pc/SDL2-2.32.2/x86_64-w64-mingw32
+OALSOFT_DIR := /home/MCboy/pokeemerald-sdl2pc/openal-soft-1.24.2-bin
 ASM_PSEUDO_OP_CONV := sed -e 's/\.4byte/\.int/g;s/\.2byte/\.short/g'
 #FIX_UNDERSCORE is required for 32 bit windows
 FIX_UNDERSCORE := $(OBJCOPY)
 
-export CPP := $(PREFIX)cpp
-export LD := $(PREFIX)ld
+export CPP := cpp
+export LD := ld
 
 ifeq ($(OS),Windows_NT)
 EXE := .exe
@@ -54,15 +55,15 @@ ASFLAGS := --64 --defsym MODERN=$(MODERN) --defsym PORTABLE=1 --defsym VER_64BIT
 GCC_VER := $(shell $(CC) -dumpversion)
 
 CC1 	:= $(shell $(PREFIX)gcc --print-prog-name=cc1) -quiet
-override CFLAGS += -Wno-trigraphs -Wimplicit -Wparentheses -Wunused -m64 -std=gnu99 -fno-dce -fno-builtin -Wno-unused-function -DPORTABLE -DNONMATCHING -D UBFIX -DMODERN=$(MODERN)
+override CFLAGS += -march=x86-64 -m64 -msse3 -std=gnu99 -fno-dce -fno-builtin -Wno-unused-function -DPORTABLE -DNONMATCHING -D UBFIX -DMODERN=$(MODERN)
 ROM		:= pokeemerald64.exe
-OBJ_DIR	:= build/pc
+OBJ_DIR	:= b/pc
 
-CPPFLAGS := -iquote include -iquote $(GFLIB_SUBDIR) -Wno-trigraphs -D NONMATCHING -D PORTABLE -D $(TARGET_PLATFORM) -D $(TILE_RENDERER) -D VER_64BIT -D MODERN=$(MODERN) -D UBFIX  -I$(SDL_DIR)/include -L$(SDL_DIR)/lib
+CPPFLAGS := -iquote include -iquote $(GFLIB_SUBDIR) -Wno-trigraphs -D NONMATCHING -D PORTABLE -D $(TARGET_PLATFORM) -D $(TILE_RENDERER) -D VER_64BIT -D MODERN=$(MODERN) -D UBFIX  -I$(SDL_DIR)/include -L$(SDL_DIR)/lib -I$(OALSOFT_DIR)/include -L$(OALSOFT_DIR)/lib
 
 LDFLAGS = -Map ../../$(MAP)
 
-PLATFORM_INCLUDES := 
+PLATFORM_INCLUDES := -lOpenAL32
 
 #Windows only
 ifneq ($(NO_STD_LIB),1)
@@ -304,4 +305,4 @@ $(ELF): $(OBJ_DIR)/ld_script.ld $(OBJS)
 	$(FIX) $@ -t"$(TITLE)" -c$(GAME_CODE) -m$(MAKER_CODE) -r$(REVISION) --silent
 
 $(ROM): $(OBJS)
-	$(CC) $(CFLAGS) -Wl,--demangle $^ -static-libgcc -L$(SDL_DIR)/lib $(PLATFORM_INCLUDES) -lwinmm -lxinput -o $@
+	$(CC) $(CFLAGS) -Wl,--demangle $^ -static-libgcc -L$(SDL_DIR)/lib -L$(OALSOFT_DIR)/libs/Win64 $(PLATFORM_INCLUDES) -lwinmm -lxinput -o $@

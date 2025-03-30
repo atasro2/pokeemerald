@@ -105,9 +105,13 @@ void cgb_trigger_note(u8 channel){
     }
 }
 
+void cgb_audio_generate_buf(u16 samplesPerFrame, float *outBuffer);
 
 void cgb_audio_generate(u16 samplesPerFrame){
-    float *outBuffer = gb.outBuffer;
+    cgb_audio_generate_buf(samplesPerFrame, gb.outBuffer);
+}
+
+void cgb_audio_generate_buf(u16 samplesPerFrame, float *outBuffer) {
     switch(REG_NR11 & 0xC0){
         case 0x00:
             PU1Table = PU0;
@@ -246,11 +250,10 @@ void cgb_audio_generate(u16 samplesPerFrame){
                 if(REG_NR51 & 0x08) outputR += gb.Vol[3] * sample / 15.0f;
             }
         }
-        outBuffer[0] = outputL / 4.0f;
-        outBuffer[1] = outputR / 4.0f;
+        outBuffer[0] = (outputL / 4);
+        outBuffer[1] = (outputR / 4);
     }
 }
-
 
 float *cgb_get_buffer(){
     return gb.outBuffer;

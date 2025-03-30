@@ -285,9 +285,9 @@ static void BerryFix_GpuSet(void)
     SetGpuReg(REG_OFFSET_BG1VOFS, 0);
     SetGpuReg(REG_OFFSET_BLDCNT, 0);
 
-    DmaFill32(3, 0, VRAM, VRAM_SIZE);
-    DmaFill32(3, 0, OAM, OAM_SIZE);
-    DmaFill32(3, 0, PLTT, PLTT_SIZE);
+    DmaFill32(3, 0, (void*)VRAM, VRAM_SIZE);
+    DmaFill32(3, 0, (void*)OAM, OAM_SIZE);
+    DmaFill32(3, 0, (void*)PLTT, PLTT_SIZE);
     ResetBgsAndClearDma3BusyFlags(0);
 
     InitBgsFromTemplates(0, sBerryFixBgTemplates, ARRAY_COUNT(sBerryFixBgTemplates));

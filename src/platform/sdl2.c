@@ -20,14 +20,17 @@
 #include "gba/flash_internal.h"
 #include "platform/dma.h"
 #include "platform/framedraw.h"
+#include "platform/audio.h"
 
 extern void (*const gIntrTable[])(void);
 
 SDL_Thread *mainLoopThread;
+SDL_Thread *audioThread;
 SDL_Window *sdlWindow;
 SDL_Renderer *sdlRenderer;
 SDL_Texture *sdlTexture;
 SDL_sem *vBlankSemaphore;
+SDL_sem *audioSemaphore;
 SDL_atomic_t isFrameAvailable;
 bool speedUp = false;
 unsigned int videoScale = 1;
@@ -55,6 +58,74 @@ static void StoreSaveFile(void);
 static void CloseSaveFile(void);
 
 static void UpdateInternalClock(void);
+
+#ifdef _WIN32
+
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <mmsystem.h>
+
+int altime_get(void)
+{
+    static int start_time = 0;
+    int cur_time;
+    union {
+        FILETIME ftime;
+        ULARGE_INTEGER ulint;
+    } systime;
+    GetSystemTimeAsFileTime(&systime.ftime);
+    /* FILETIME is in 100-nanosecond units, or 1/10th of a microsecond. */
+    cur_time = (int)(systime.ulint.QuadPart/10000);
+
+    if(!start_time)
+        start_time = cur_time;
+    return cur_time - start_time;
+}
+
+void al_nssleep(unsigned long nsec)
+{
+    Sleep(nsec / 1000000);
+}
+
+#else
+
+#include <sys/time.h>
+#include <unistd.h>
+#include <time.h>
+
+int altime_get(void)
+{
+    static int start_time = 0u;
+    int cur_time;
+
+#if _POSIX_TIMERS > 0
+    struct timespec ts;
+    int ret = clock_gettime(CLOCK_REALTIME, &ts);
+    if(ret != 0) return 0;
+    cur_time = (int)(ts.tv_sec*1000 + ts.tv_nsec/1000000);
+#else /* _POSIX_TIMERS > 0 */
+    struct timeval tv;
+    int ret = gettimeofday(&tv, NULL);
+    if(ret != 0) return 0;
+    cur_time = (int)(tv.tv_sec*1000 + tv.tv_usec/1000);
+#endif
+
+    if(!start_time)
+        start_time = cur_time;
+    return cur_time - start_time;
+}
+
+void al_nssleep(unsigned long nsec)
+{
+    struct timespec ts, rem;
+    ts.tv_sec = (time_t)(nsec / 1000000000ul);
+    ts.tv_nsec = (long)(nsec % 1000000000ul);
+    while(nanosleep(&ts, &rem) == -1 && errno == EINTR)
+        ts = rem;
+}
+
+#endif
+
 
 int main(int argc, char **argv)
 {
@@ -106,35 +177,21 @@ int main(int argc, char **argv)
 
     isFrameAvailable.value = 0;
     vBlankSemaphore = SDL_CreateSemaphore(0);
-
-    SDL_AudioSpec want;
-
-    SDL_memset(&want, 0, sizeof(want)); /* or SDL_zero(want) */
-    want.freq = 42048;
-    want.format = AUDIO_F32;
-    want.channels = 2;
-    want.samples = 1024;
-    cgb_audio_init(want.freq);
-
-
-    if (SDL_OpenAudio(&want, 0) < 0)
-        SDL_Log("Failed to open audio: %s", SDL_GetError());
-    else
-    {
-        if (want.format != AUDIO_F32) /* we let this one thing change. */
-            SDL_Log("We didn't get Float32 audio format.");
-        SDL_PauseAudio(0);
-    }
+    
+    InitAudio(48000);
     
     VDraw(sdlTexture);
+    
+    //audioThread = SDL_CreateThread(AudioThread, "TAudio", NULL);
     mainLoopThread = SDL_CreateThread(DoMain, "AgbMain", NULL);
 
-    double accumulator = 0.0;
-
+    double accumulator = fixedTimestep / timeScale;
+    
     memset(&internalClock, 0, sizeof(internalClock));
     internalClock.status = SIIRTCINFO_24HOUR;
     UpdateInternalClock();
-
+    double count = 0.0;
+    double test = 0.0;
     while (isRunning)
     {
         ProcessEvents();
@@ -142,19 +199,19 @@ int main(int argc, char **argv)
         if (!paused)
         {
             double dt = fixedTimestep / timeScale; // TODO: Fix speedup
-
             curGameTime = SDL_GetPerformanceCounter();
             double deltaTime = (double)((curGameTime - lastGameTime) / (double)SDL_GetPerformanceFrequency());
             if (deltaTime > (dt * 5))
                 deltaTime = dt;
             lastGameTime = curGameTime;
-
+            
             accumulator += deltaTime;
-
+            test += deltaTime;
             while (accumulator >= dt)
             {
                 if (SDL_AtomicGet(&isFrameAvailable))
                 {
+                    UpdateAudio();
                     VDraw(sdlTexture);
                     SDL_RenderClear(sdlRenderer);
                     SDL_RenderCopy(sdlRenderer, sdlTexture, NULL, NULL);
@@ -163,13 +220,14 @@ int main(int argc, char **argv)
                     REG_DISPSTAT |= INTR_FLAG_VBLANK;
 
                     RunDMAs(DMA_HBLANK);
-
+                    
                     if (REG_DISPSTAT & DISPSTAT_VBLANK_INTR)
                         gIntrTable[4]();
                     REG_DISPSTAT &= ~INTR_FLAG_VBLANK;
 
                     SDL_SemPost(vBlankSemaphore);
-
+                    
+                    count+=1;
                     accumulator -= dt;
                 }
             }
@@ -186,7 +244,7 @@ int main(int argc, char **argv)
 
     //StoreSaveFile();
     CloseSaveFile();
-
+    QuitAudio();
     SDL_DestroyWindow(sdlWindow);
     SDL_Quit();
     return 0;
@@ -256,7 +314,8 @@ void Platform_ReadFlash(u16 sectorNum, u32 offset, u8 *dest, u32 size)
 
 void Platform_QueueAudio(float *audioBuffer, s32 samplesPerFrame)
 {
-    SDL_QueueAudio(1, audioBuffer, samplesPerFrame);
+    return;
+    //SDL_QueueAudio(1, audioBuffer, samplesPerFrame);
 }
 
 
@@ -317,8 +376,8 @@ void ProcessEvents(void)
                 {
                     speedUp = false;
                     timeScale = 1.0;
-                    SDL_ClearQueuedAudio(1);
-                    SDL_PauseAudio(0);
+                    //SDL_ClearQueuedAudio(1);
+                    //SDL_PauseAudio(0);
                 }
                 break;
             }
@@ -353,7 +412,7 @@ void ProcessEvents(void)
                 {
                     speedUp = true;
                     timeScale = 5.0;
-                    SDL_PauseAudio(1);
+                    //SDL_PauseAudio(1);
                 }
                 break;
             }
@@ -422,12 +481,12 @@ u16 GetXInputKeys()
         {
             if (timeScale > 1.0)
             {
-                SDL_PauseAudio(1);
+                //SDL_PauseAudio(1);
             }
             else
             {
-                SDL_ClearQueuedAudio(1);
-                SDL_PauseAudio(0);
+                //SDL_ClearQueuedAudio(1);
+                //SDL_PauseAudio(0);
             }
         }
     }

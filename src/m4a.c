@@ -113,10 +113,12 @@ void m4aSoundInit(void)
     }
 }
 
+void RunMixerFrame(void);
+
 void m4aSoundMain(void)
 {
 #ifndef PORTABLE
-    SoundMain();
+    //SoundMain();
 #else
     RunMixerFrame();
 #endif
@@ -396,7 +398,7 @@ void SoundInit(struct SoundInfo *soundInfo)
     soundInfo->MidiKeyToCgbFreq = (MidiKeyToCgbFreqFunc)DummyFunc;
     soundInfo->ExtVolPit = (ExtVolPitFunc)DummyFunc;
 
-    MPlayJumpTableCopy(gMPlayJumpTable);
+    MPlayJumpTableCopy((void **)gMPlayJumpTable);
 
     soundInfo->MPlayJumpTable = gMPlayJumpTable;
 
@@ -414,13 +416,13 @@ void SampleFreqSet(u32 freq)
 #ifndef PORTABLE
     soundInfo->pcmSamplesPerVBlank = gPcmSamplesPerVBlankTable[freq - 1];
 #else
-    soundInfo->pcmSamplesPerVBlank = 701;
+    soundInfo->pcmSamplesPerVBlank = 1024;
 #endif
     soundInfo->pcmDmaPeriod = PCM_DMA_BUF_SIZE / soundInfo->pcmSamplesPerVBlank;
 
-    soundInfo->pcmFreq = 60.0f * soundInfo->pcmSamplesPerVBlank;
+    soundInfo->pcmFreq = 59.727500569606 * soundInfo->pcmSamplesPerVBlank;
 
-    soundInfo->divFreq = 1.0f / soundInfo->pcmFreq;
+    soundInfo->divFreq = 1.0f / 48000.0f;
 
     // Turn off timer 0.
     REG_TM0CNT_H = 0;
@@ -428,7 +430,7 @@ void SampleFreqSet(u32 freq)
     // cycles per LCD fresh 280896
     REG_TM0CNT_L = -(280896 / soundInfo->pcmSamplesPerVBlank);
 
-    m4aSoundVSyncOn();
+    //m4aSoundVSyncOn();
 #ifndef PORTABLE
     while (*(vu8 *)REG_ADDR_VCOUNT == 159)
         ;
@@ -660,7 +662,7 @@ void MPlayStart(struct MusicPlayerInfo *mplayInfo, struct SongHeader *songHeader
 
         while (i < songHeader->trackCount && i < mplayInfo->trackCount)
         {
-            TrackStop(mplayInfo, track);
+            TrackStop((struct MP2KPlayerState *)mplayInfo, (struct MP2KTrack *)track);
             track->flags = MPT_FLG_EXIST | MPT_FLG_START;
             track->chan = 0;
             track->cmdPtr = songHeader->part[i];
@@ -670,7 +672,7 @@ void MPlayStart(struct MusicPlayerInfo *mplayInfo, struct SongHeader *songHeader
 
         while (i < mplayInfo->trackCount)
         {
-            TrackStop(mplayInfo, track);
+            TrackStop((struct MP2KPlayerState *)mplayInfo, (struct MP2KTrack *)track);
             track->flags = 0;
             i++;
             track++;
@@ -699,7 +701,7 @@ void m4aMPlayStop(struct MusicPlayerInfo *mplayInfo)
 
     while (i > 0)
     {
-        TrackStop(mplayInfo, track);
+        TrackStop((struct MP2KPlayerState *)mplayInfo, (struct MP2KTrack *)track);
         i--;
         track++;
     }
@@ -739,7 +741,7 @@ void FadeOutBody(struct MusicPlayerInfo *mplayInfo)
             {
                 u32 val;
 
-                TrackStop(mplayInfo, track);
+                TrackStop((struct MP2KPlayerState *)mplayInfo, (struct MP2KTrack *)track);
 
                 val = TEMPORARY_FADE;
                 fadeOV = mplayInfo->fadeOV;

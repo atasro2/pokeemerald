@@ -30,6 +30,7 @@ void cgb_toggle_length(u8 channel, bool8 state);
 void cgb_set_length(u8 channel, u8 length);
 void cgb_set_envelope(u8 channel, u8 envelope);
 void cgb_trigger_note(u8 channel);
+void cgb_audio_generate_buf(u16 samplesPerFrame, float *outBuffer);
 void cgb_audio_generate(u16 samplesPerFrame);
 float *cgb_get_buffer();
 
